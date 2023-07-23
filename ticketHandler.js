@@ -34,7 +34,9 @@ export default async function sendMessage(message, type, isEdit) {
     messageEmbed.setImage(messageAttachments[0].proxyURL);
   }
 
-  const logdb = db.table("log" + message.author.id, messageLogSchema);
+  const userDb = type == "dm" ? message.author.id : chtable.get("channelId", message.channel.id).id;
+
+  const logdb = db.table("log" + userDb, messageLogSchema);
 
   let embedId;
 
@@ -60,9 +62,15 @@ export default async function sendMessage(message, type, isEdit) {
       channel.send({ embeds: [ogEmbed] });
     }
   } else {
-    message.react("✅");
+    try {
     embedId = await channel.send({ embeds: [messageEmbed] });
+    message.react("✅");
+    } catch (err) {
+      message.channel.send(":x: The user can no longer be found, please close this ticket using `=close`.")
+    }
   }
+
+  if (!embedId) return;
 
   logdb.set({
     id: message.id,
