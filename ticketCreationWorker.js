@@ -9,6 +9,7 @@ import {
 import {
   guildRef,
   categoryRef,
+  categoryRefBackup,
   chtable,
   channelListener,
   messageLogSchema,
@@ -17,10 +18,13 @@ import {
 } from "./index.js";
 
 async function createNewTicket(message) {
+
+  const whichCategory = Array.from(categoryRef.children.cache.values()).length >= 50 ? categoryRefBackup : categoryRef;
+
   const ticketChannel = await guildRef.channels.create({
     name: `ticket-${message.author.username}`,
     type: ChannelType.GuildText,
-    parent: categoryRef,
+    parent: whichCategory,
     reason: `ModMail Ticket Opened by ${message.author.username}`,
     topic: `ID: ${message.author.id}, Time Created: ${new Date().toString()}`,
   });
@@ -119,6 +123,9 @@ export default async function ticketCreationWorker(message) {
 
     switch (confirmation.customId) {
       case "confirmTicketCreation":
+
+         if (chtable.has("id", message.author.id)) return response.delete();
+
         const sentEmbed = new EmbedBuilder()
           .setTitle("> :white_check_mark: Message sent")
           .setDescription(
