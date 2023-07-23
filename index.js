@@ -52,11 +52,6 @@ export let guildRef,
 export const chtable = db.table("modmail", channelInfoSchema);
 
 channelListener = chtable.filter("Select", {}).map((n) => n.channelId);
-
-setInterval(() => {
-  console.log(channelListener);
-}, 1e3 * 5);
-
 console.log(
   "Starting up with the following listeners: " + JSON.stringify(channelListener)
 );
@@ -76,8 +71,6 @@ bot.on("messageUpdate", async (oldmsg, newmsg) => {
   if (oldmsg.content == newmsg.content) return;
 
   if (!chtable.has("id", oldmsg.author.id)) return;
-
-  console.log(oldmsg.id);
 
   if (
     db.table("log" + oldmsg.author.id, messageLogSchema).has("id", oldmsg.id)
