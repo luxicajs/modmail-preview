@@ -7,6 +7,7 @@ import {
 } from "discord.js";
 
 import {
+  bot,
   chtable,
   db,
   messageLogSchema,
@@ -34,7 +35,7 @@ function deleteTicket(message) {
   const x = channelListener.indexOf(channelListener);
   channelListener.splice(x, 1);
 
-  const userData = message.guild.members.cache.get(user) || "Not found";
+  const userData = bot.users.cache.get(user) || "Not found";
 
   const reason = message.content.split("=close ")[1] || "";
 
@@ -43,8 +44,8 @@ function deleteTicket(message) {
     .addFields([
       {
         name: "User",
-        value: userData.user.username
-          ? `${userData.user.username} (<@${user}>)`
+        value: userData.username
+          ? `${userData.username} (<@${user}>)`
           : "Not found",
       },
       {
@@ -53,7 +54,8 @@ function deleteTicket(message) {
           reason.length >= 1 ? ": " + reason : "."
         }`,
       },
-    ]).setColor(0xFF4136);
+    ])
+    .setColor(0xff4136);
 
   const textFile = new AttachmentBuilder(Buffer.from(log), {
     name: "transcript.txt",
@@ -63,6 +65,18 @@ function deleteTicket(message) {
 
   logChnRef.send({ embeds: [logEmbed] });
   logChnRef.send({ files: [textFile] });
+
+  const closureInfo = new EmbedBuilder()
+    .setTitle(":white_check_mark: The ticket has been closed")
+    .setDescription(
+      "Thank you for reporting an issue and don't hesitate to contact us in the future by writing another message." +
+        (reason.length >= 1 ? `\nReason: ${reason}` : "")
+    )
+    .setColor(0xff4136);
+
+  if (userData != "Not found") {
+    userData.dmChannel.send({ embeds: [closureInfo] });
+  }
 }
 
 export default async function closeTicket(message) {
