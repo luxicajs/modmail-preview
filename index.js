@@ -41,21 +41,31 @@ export const messageLogSchema = Schema.Create({
   content: DataType.String,
   username: DataType.String,
   attachments: DataType.String,
-  botMessageId: DataType.String
+  botMessageId: DataType.String,
 });
 
 export let guildRef,
   categoryRef,
+  categoryRefBackup,
   logChnRef,
   channelListener = [];
 export const chtable = db.table("modmail", channelInfoSchema);
 
-channelListener = chtable.filter("Select", {}).map(n => n.channelId);
+channelListener = chtable.filter("Select", {}).map((n) => n.channelId);
 
-console.log("Starting up with the following listeners: " + JSON.stringify(channelListener));
+setInterval(() => {
+  console.log(channelListener);
+}, 1e3 * 5);
+
+console.log(
+  "Starting up with the following listeners: " + JSON.stringify(channelListener)
+);
 
 bot.on("ready", () => {
   console.log(`Bot ready as ${bot.user.username}`);
+
+  categoryRefBackup = bot.channels.cache.get(process.env.categoryBackupId);
+
   guildRef = bot.guilds.cache.get(process.env.guildId);
   categoryRef = bot.channels.cache.get(process.env.categoryId);
   logChnRef = bot.channels.cache.get(process.env.logChannelId);
@@ -67,10 +77,14 @@ bot.on("messageUpdate", async (oldmsg, newmsg) => {
 
   if (!chtable.has("id", oldmsg.author.id)) return;
 
-  if (db.table("log"+oldmsg.author.id, messageLogSchema).has("id", oldmsg.id)) {
+  console.log(oldmsg.id);
+
+  if (
+    db.table("log" + oldmsg.author.id, messageLogSchema).has("id", oldmsg.id)
+  ) {
     sendMessage(newmsg, oldmsg.channel.type == 0 ? "channel" : "dm", true);
   }
-})
+});
 
 bot.on("messageCreate", async (message) => {
   if (message.author.bot) return;
@@ -79,11 +93,14 @@ bot.on("messageCreate", async (message) => {
       sendMessage(message, "dm");
     } else {
       ticketCreationWorker(message);
-    } 
-  } else if (message.channel.type == 0 && channelListener.includes(message.channel.id)) {
+    }
+  } else if (
+    message.channel.type == 0 &&
+    channelListener.includes(message.channel.id)
+  ) {
     if (chtable.has("channelId", message.channel.id)) {
-        if (message.content.startsWith("=close")) return closeTicket(message);
-        sendMessage(message, "channel");
+      if (message.content.startsWith("=close")) return closeTicket(message);
+      sendMessage(message, "channel");
     }
   }
 });
