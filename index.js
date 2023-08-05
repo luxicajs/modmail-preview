@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Partials } from "discord.js";
+import { Client, GatewayIntentBits, Partials, channelLink } from "discord.js";
 import { GreatDB, Schema, DataType } from "great.db";
 import "dotenv/config";
 
@@ -51,13 +51,18 @@ export let guildRef,
   channelListener = [];
 export const chtable = db.table("modmail", channelInfoSchema);
 
-channelListener = chtable.filter("Select", {}).map((n) => n.channelId);
+export function refreshListener() {
+  channelListener = chtable.filter("Select", {}).map((n) => n.channelId);
+}
+refreshListener();
 console.log(
   "Starting up with the following listeners: " + JSON.stringify(channelListener)
 );
 
 bot.on("ready", () => {
   console.log(`Bot ready as ${bot.user.username}`);
+
+  bot.user.setActivity("DM me for help! ✉️");
 
   categoryRefBackup = bot.channels.cache.get(process.env.categoryBackupId);
 
@@ -70,17 +75,36 @@ bot.on("messageUpdate", async (oldmsg, newmsg) => {
   if (oldmsg.author.bot) return;
   if (oldmsg.content == newmsg.content) return;
 
-  if (!chtable.has("id", oldmsg.author.id)) return;
-
-  if (
-    db.table("log" + oldmsg.author.id, messageLogSchema).has("id", oldmsg.id)
-  ) {
-    sendMessage(newmsg, oldmsg.channel.type == 0 ? "channel" : "dm", true);
+  if (oldmsg.channel.type == 0) {
+    if (!channelListener.includes(oldmsg.channel.id)) return;
+    sendMessage(newmsg, "channel", true);
+  } else {
+    if (
+      db.table("log" + oldmsg.author.id, messageLogSchema).has("id", oldmsg.id)
+    ) {
+      sendMessage(newmsg, "dm", true);
+    }
   }
 });
 
+export async function findById(id, message) {
+  const toFetch = message ? message.guild.members : bot.users;
+  try {
+    const x = await toFetch.fetch(id);
+    return message ? x.user : x; // cache bypass i guess
+  } catch (err) {
+    return null;
+  }
+}
+
 bot.on("messageCreate", async (message) => {
   if (message.author.bot) return;
+
+  if (message.content == "=unstuck") {
+    message.react("✅");
+    return refreshListener();
+  }
+
   if (message.channel.type == 1) {
     if (chtable.has("id", message.author.id)) {
       sendMessage(message, "dm");
