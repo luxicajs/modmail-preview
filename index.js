@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Partials, channelLink } from "discord.js";
+import { Client, GatewayIntentBits, Partials } from "discord.js";
 import { GreatDB, Schema, DataType } from "great.db";
 import "dotenv/config";
 
