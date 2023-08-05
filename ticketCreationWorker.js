@@ -29,13 +29,15 @@ async function createNewTicket(message) {
     topic: `ID: ${message.author.id}, Time Created: ${new Date().toString()}`,
   });
 
-  const messageAttachments = Array.from(message.attachments.values());
+  if (chtable.has("id", message.author.id)) return ticketChannel.delete(); // LMAO
 
   chtable.set({
     id: message.author.id,
     username: message.author.username,
     channelId: ticketChannel.id,
   });
+
+  const messageAttachments = Array.from(message.attachments.values());
   channelListener.push(ticketChannel.id);
 
   const initEmbed = new EmbedBuilder()
@@ -93,7 +95,7 @@ export default async function ticketCreationWorker(message) {
   const newcomerEmbed = new EmbedBuilder()
     .setTitle(`> Hi there, ${message.author.username}!`)
     .setDescription(
-      `As soon as you click the **Proceed** button the message you sent will be sent straight to the PlayStation 5 Discord Staff Team. Are you sure you want to send the message above to the staff team?`
+      `As soon as you click the **Proceed** button the message you sent will be sent straight to the Server Staff Team. Are you sure you want to send the message above to the staff team?`
     )
     .setColor(0x0074d9);
 
@@ -123,9 +125,6 @@ export default async function ticketCreationWorker(message) {
 
     switch (confirmation.customId) {
       case "confirmTicketCreation":
-
-         if (chtable.has("id", message.author.id)) return response.delete();
-
         const sentEmbed = new EmbedBuilder()
           .setTitle("> :white_check_mark: Message sent")
           .setDescription(
@@ -151,6 +150,7 @@ export default async function ticketCreationWorker(message) {
         break;
     }
   } catch (e) {
+    console.log(e);
     const cancelEmbed = new EmbedBuilder()
       .setTitle("> :x: Ticket creation cancelled")
       .setDescription("Confirmation timed out.")
