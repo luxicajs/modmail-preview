@@ -1,11 +1,13 @@
-import { chtable, db, messageLogSchema, bot } from "./index.js";
+import { chtable, db, messageLogSchema, bot, findById } from "./index.js";
 import { EmbedBuilder } from "discord.js";
+
+const imageExtensions = ["png", "jpeg", "jpg"];
 
 export default async function sendMessage(message, type, isEdit) {
   const channel =
     type == "dm"
       ? bot.channels.cache.get(chtable.get("id", message.author.id).channelId)
-      : bot.users.cache.get(chtable.get("channelId", message.channel.id).id);
+      : await findById(chtable.get("channelId", message.channel.id).id);
 
   const messageEmbed = new EmbedBuilder()
     .setTitle("Message Received")
@@ -18,23 +20,27 @@ export default async function sendMessage(message, type, isEdit) {
   if (message.content) messageEmbed.setDescription(message.content);
 
   const messageAttachments = Array.from(message.attachments.values());
-  if (messageAttachments.length >= 2) {
+
+  if (
+    messageAttachments.length >= 2 ||
+    (messageAttachments[0] && !imageExtensions.includes(messageAttachments[0].url.split(".").pop()))) {
     messageEmbed.addFields({
       name: "Attachments",
-      value:
-        messageAttachments.length >= 1
-          ? messageAttachments
-              .map((e, i) => `[Attachment ${i + 1}](${e.proxyURL})`)
-              .join("\n")
-          : "None",
+      value: messageAttachments
+        .map((e, i) => `[Attachment ${i + 1}](${e.url})`)
+        .join("\n"),
     });
   }
+  
 
   if (messageAttachments.length == 1) {
-    messageEmbed.setImage(messageAttachments[0].proxyURL);
+    messageEmbed.setImage(messageAttachments[0].url);
   }
 
-  const userDb = type == "dm" ? message.author.id : chtable.get("channelId", message.channel.id).id;
+  const userDb =
+    type == "dm"
+      ? message.author.id
+      : chtable.get("channelId", message.channel.id).id;
 
   const logdb = db.table("log" + userDb, messageLogSchema);
 
@@ -43,12 +49,14 @@ export default async function sendMessage(message, type, isEdit) {
   if (isEdit) {
     const og = logdb.get("id", message.id);
 
+    if (!og) return;
+
     if (og.botMessageId) {
       const ogMessage =
         type == "dm"
           ? channel.messages.cache.get(og.botMessageId)
           : channel.dmChannel.messages.cache.get(og.botMessageId);
-      ogMessage.edit({ embeds: [messageEmbed] });
+      embedId = ogMessage.edit({ embeds: [messageEmbed] }); // my dumbass somehow missed this in production. CON-FUCKING-GRATULATIONS
     } else {
       const ogEmbed = new EmbedBuilder()
         .setTitle("The main message has been edited")
@@ -63,14 +71,18 @@ export default async function sendMessage(message, type, isEdit) {
     }
   } else {
     try {
-    embedId = await channel.send({ embeds: [messageEmbed] });
-    message.react("✅");
+      embedId = await channel.send({ embeds: [messageEmbed] });
+      message.react("✅");
     } catch (err) {
-      message.channel.send(":x: The user can no longer be found, please close this ticket using `=close`.")
+      message.channel.send(
+        ":x: The user can no longer be messaged, ask them to come back or enable their DMs. If you are unable to do that please close this ticket using `=close`."
+      );
+      embedId = "abort";
     }
   }
 
-  if (!embedId) return;
+
+  if (embedId == "abort") return;
 
   logdb.set({
     id: message.id,
