@@ -13,9 +13,11 @@ import {
   messageLogSchema,
   logChnRef,
   channelListener,
+  findById,
+  refreshListener
 } from "./index.js";
 
-function deleteTicket(message) {
+async function deleteTicket(message) {
   const user = chtable.get("channelId", message.channel.id).id;
 
   const messages = db
@@ -24,18 +26,19 @@ function deleteTicket(message) {
   const log = messages
     .map(
       (e) =>
-        `[${e.timestamp} - @${e.username}] ${
+        `[${new Date(e.timestamp).toString()} - @${e.username}] ${
           e.content == "Not provided" ? "" : e.content
-        } ${e.attachments ? "\n> Attachments: \n" + e.attachments : "\n"}`
+        } ${
+          e.attachments ? "\n> Attachments: \n" + e.attachments + "\n" : "\n"
+        }`
     )
     .join("");
   db.deleteTable("log" + user);
   chtable.delete("channelId", message.channel.id);
 
-  const x = channelListener.indexOf(channelListener);
-  channelListener.splice(x, 1);
+  refreshListener();
 
-  const userData = bot.users.cache.get(user) || "Not found";
+  const userData = (await findById(user, message)) || "Not found";
 
   const reason = message.content.split("=close ")[1] || "";
 
@@ -46,7 +49,7 @@ function deleteTicket(message) {
         name: "User",
         value: userData.username
           ? `${userData.username} (<@${user}>)`
-          : "Not found",
+          : `${message.channel.name.split("-")[1]} (<@${user}>)`,
       },
       {
         name: "Reason",
@@ -129,6 +132,8 @@ export default async function closeTicket(message) {
     }
   } catch (e) {
     console.log(e);
-    await response.delete();
+    try {
+      await response.delete();
+    } catch (e) {}
   }
 }
